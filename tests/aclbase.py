@@ -25,7 +25,7 @@ class ACLBasicTest(unittest.TestCase):
 		#import uuid
 		#self.dbfilename = '%s.db' % uuid.uuid4()
 		#self.engine = create_engine('sqlite:///%s' % self.dbfilename, echo = 'debug')
-		self.engine = create_engine('sqlite:///:memory:', echo = 'debug')
+		self.engine = create_engine('sqlite:///:memory:', echo = False)
 		Base.metadata.drop_all(bind = self.engine)
 		Base.metadata.create_all(bind = self.engine)
 		Session = sessionmaker(bind = self.engine)
