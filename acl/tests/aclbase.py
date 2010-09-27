@@ -2,7 +2,7 @@
 # coding=utf8
 
 import unittest
-from model import *
+from acl.model import *
 
 # example
 class Person(Base, ACLSubjectRef):
