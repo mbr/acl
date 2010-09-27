@@ -5,6 +5,7 @@ from sqlalchemy import create_engine, Column, Integer, String, Sequence, Foreign
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.util import classproperty
 from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.orm.session import object_session
 
 Base = declarative_base()
 
@@ -12,14 +13,66 @@ class ACLSubject(Base):
 	__tablename__ = 'acl_subjects'
 	id = Column(Integer, primary_key = True)
 
+	def may(self, verb, obj = None):
+		session = object_session(self)
+		verb = ACLVerb.get(session, verb)
+		obj = ACLObject.get_object(obj)
+
+		value = False
+
+		for rule in session.query(ACLRule).filter_by(subj = self, verb = verb, obj = obj).all():
+			if False == rule.value: return False
+			elif True == rule.value: value = True
+			else:
+				assert('not reached')
+
+		return value
+
+	def permit(self, verb, obj = None, value = True):
+		session = object_session(self)
+		verb = ACLVerb.get(session, verb)
+		obj = ACLObject.get_object(obj)
+
+		# check if rule exists, if yes, return
+		if session.query(ACLRule).filter_by(subj = self, verb = verb, obj = obj, value = value).first(): return
+
+		# create rule
+		r = ACLRule(subj = self, verb = verb, obj = obj, value = value)
+		session.add(r)
+
 class ACLVerb(Base):
 	__tablename__ = 'acl_verbs'
 	id = Column(Integer, primary_key = True)
 	name = Column(String, unique = True)
 
+	def __init__(self, name):
+		self.name = name
+
+	@staticmethod
+	def get_by_name(session, name):
+		verb = session.query(ACLVerb).filter_by(name = name).first()
+
+		if not verb:
+			verb = ACLVerb(name)
+			session.add(verb)
+		return verb
+
+	@staticmethod
+	def get(session, name_or_verb):
+		if isinstance(name_or_verb, ACLVerb): return name_or_verb
+		return ACLVerb.get_by_name(session, name_or_verb)
+
 class ACLObject(Base):
 	__tablename__ = 'acl_objects'
 	id = Column(Integer, primary_key = True)
+
+	@staticmethod
+	def get_object(acl_obj):
+		if None == acl_obj: return None
+		if isinstance(acl_obj, ACLObjectRef):
+			acl_obj.init_acl()
+			return acl_obj._acl_object
+		return acl_obj
 
 class ACLSubjectRef(object):
 	@classproperty
@@ -33,6 +86,14 @@ class ACLSubjectRef(object):
 	def init_acl(self):
 		if None == self._acl_subject:
 			self._acl_subject = ACLSubject()
+
+	def may(self, *args, **kwargs):
+		self.init_acl()
+		return self._acl_subject.may(*args, **kwargs)
+
+	def permit(self, *args, **kwargs):
+		self.init_acl()
+		return self._acl_subject.permit(*args, **kwargs)
 
 class ACLObjectRef(object):
 	@classproperty
@@ -52,58 +113,11 @@ class ACLRule(Base):
 	id = Column(Integer, primary_key = True)
 
 	subj_id = Column(Integer, ForeignKey(ACLSubject.id))
-	verb_id = Column(Integer, ForeignKey(ACLVerb.id), nullable = True)
-	obj_id = Column(Integer, ForeignKey(ACLObject.id))
+	verb_id = Column(Integer, ForeignKey(ACLVerb.id))
+	obj_id = Column(Integer, ForeignKey(ACLObject.id), nullable = True)
 
 	subj = relationship(ACLSubject)
 	verb = relationship(ACLVerb)
 	obj = relationship(ACLObject)
 
 	value = Column(Boolean)
-
-	def __init__(self, subj_ref, verb, obj_ref, value):
-		assert(hasattr(subj_ref, '_acl_subject'))
-		assert(hasattr(obj_ref, '_acl_object'))
-
-		# create subject/object if necessary
-		subj_ref.init_acl()
-		obj_ref.init_acl()
-
-		self.subj = subj_ref._acl_subject
-		self.verb = verb
-		self.obj = obj_ref._acl_object
-		self.value = value
-
-# example
-class Person(Base, ACLSubjectRef):
-	__tablename__ = 'persons'
-	id = Column(Integer, primary_key = True)
-
-class Groups(Base, ACLSubjectRef):
-	__tablename__ = 'groups'
-	gid = Column(Integer, primary_key = True)
-
-class Room(Base, ACLObjectRef):
-	__tablename__ = 'rooms'
-	id = Column(Integer, primary_key = True)
-
-if '__main__' == __name__:
-	engine = create_engine('sqlite:///test.db', echo = 'debug')
-	Base.metadata.create_all(bind = engine)
-
-	Session = sessionmaker(bind = engine)
-	s = Session()
-
-	alice = Person()
-	bob = Person()
-	office = Room()
-	storage = Room()
-
-	s.add(alice)
-	s.add(bob)
-	s.add(office)
-	s.add(storage)
-
-	s.add(ACLRule(alice, None, office, True))
-
-	s.commit()
