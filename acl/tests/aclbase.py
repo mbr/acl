@@ -28,7 +28,7 @@ class ACLBasicTest(unittest.TestCase):
 		self.engine = create_engine('sqlite:///:memory:', echo = False)
 		Base.metadata.drop_all(bind = self.engine)
 		Base.metadata.create_all(bind = self.engine)
-		Session = sessionmaker(bind = self.engine)
+		Session = sessionmaker(bind = self.engine, autoflush = False, autocommit = False)
 		self.s = Session()
 
 		self.alice = Person()
