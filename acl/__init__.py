@@ -50,6 +50,7 @@ class ACLVerb(Base):
 
 	@staticmethod
 	def get_by_name(session, name):
+		session.flush()
 		verb = session.query(ACLVerb).filter_by(name = name).first()
 
 		if not verb:
