@@ -100,3 +100,17 @@ class ACLBasicTest(unittest.TestCase):
 		fred.permit('foo')
 
 		self.s.commit()
+
+	def test_not_set_returns_false(self):
+		sleep = ACLVerb('sleep')
+		self.assertEqual(None, self.alice.may('sleep'))
+
+	def test_set_returns_true(self):
+		sleep = ACLVerb('sleep')
+		self.alice.permit('sleep')
+		self.assertEqual(True, self.alice.may('sleep'))
+
+	def test_forbidden_returns_false(self):
+		sleep = ACLVerb('sleep')
+		self.alice.permit('sleep', value = False)
+		self.assertEqual(False, self.alice.may('sleep'))
