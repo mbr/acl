@@ -18,7 +18,7 @@ class ACLSubject(Base):
 		verb = ACLVerb.get(session, verb)
 		obj = ACLObject.get_object(obj)
 
-		value = False
+		value = None
 
 		for rule in session.query(ACLRule).filter_by(subj = self, verb = verb, obj = obj).all():
 			if False == rule.value: return False
