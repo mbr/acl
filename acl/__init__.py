@@ -55,6 +55,7 @@ class ACLVerb(Base):
 		if not verb:
 			verb = ACLVerb(name)
 			session.add(verb)
+			session.flush()
 		return verb
 
 	@staticmethod
