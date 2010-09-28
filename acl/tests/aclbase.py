@@ -86,3 +86,17 @@ class ACLBasicTest(unittest.TestCase):
 		self.assertTrue(self.alice.may('enter', self.office))
 
 		self.s.commit()
+
+	def test_multiple_verbs_same_name(self):
+		ed = Person()
+		diana = Person()
+		fred = Person()
+		self.s.add(ed)
+		self.s.add(diana)
+		self.s.add(fred)
+
+		ed.permit('foo')
+		diana.permit('foo')
+		fred.permit('foo')
+
+		self.s.commit()
